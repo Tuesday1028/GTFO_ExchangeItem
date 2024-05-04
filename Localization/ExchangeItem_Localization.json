@@ -1,0 +1,70 @@
+{
+  "Internal": {
+    "FeatureSettingsTexts": {
+      "Hikaria.ExchangeItem.Features.ExchangeItem.Name": {
+        "FName": {
+          "English": "Exchange Item",
+          "Chinese": "物品交换",
+          "French": null,
+          "Italian": null,
+          "German": null,
+          "Spanish": null,
+          "Russian": null,
+          "Portuguese_Brazil": null,
+          "Polish": null,
+          "Japanese": null,
+          "Korean": null
+        }
+      },
+      "Hikaria.ExchangeItem.Features.ExchangeItem+ExchangeItemSetting.ExchangeItemKey": {
+        "FSDisplayName": {
+          "English": "Exchange Item Key",
+          "Chinese": "物品交换按键",
+          "French": null,
+          "Italian": null,
+          "German": null,
+          "Spanish": null,
+          "Russian": null,
+          "Portuguese_Brazil": null,
+          "Polish": null,
+          "Japanese": null,
+          "Korean": null
+        }
+      }
+    },
+    "FeatureSettingsEnumTexts": {},
+    "ExtraTexts": [
+      {
+        "UntranslatedText": "Swap {0} times {1} with {2} {3} times {4}",
+        "Description": "Exchange",
+        "ID": 1,
+        "Languages": {
+          "English": "Swap {0} times {1} with {2} {3} times {4}",
+          "Chinese": "用 {0} 次 {1} 与 {2} 交换 {3} 次 {4}"
+        }
+      },
+      {
+        "UntranslatedText": "Get {1} times {2} from {0}",
+        "Description": "TargetToSource",
+        "ID": 2,
+        "Languages": {
+          "English": "Get {1} times {2} from {0}",
+          "Chinese": "从 {0} 获取 {1} 次 {2}"
+        }
+      },
+      {
+        "UntranslatedText": "Give {0} times {1} to {2}",
+        "Description": "SourceToTarget",
+        "ID": 3,
+        "Languages": {
+          "English": "Give {0} times {1} to {2}",
+          "Chinese": "把 {0} 次 {1} 给 {2}"
+        }
+      }
+    ]
+  },
+  "External": {
+    "ExternalFeatureSettingsTexts": {},
+    "ExternalEnumTexts": {}
+  }
+}
