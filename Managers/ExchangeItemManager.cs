@@ -11,7 +11,7 @@ public class ExchangeItemManager
 {
 	public static void Setup()
 	{
-		s_ExchangeItemRequestPacket = SNetExt_Packet<pExchangeItemRequest>.Create(typeof(pExchangeItemRequest).FullName, DoExchangeItem);
+		s_ExchangeItemRequestPacket = SNetExt_Packet<pExchangeItemRequest>.Create(typeof(pExchangeItemRequest).FullName, DoExchangeItem, DoExchangeItemValidate);
 		s_ExchangeItemFixPacket = SNetExt_Packet<pExchangeItemFix>.Create(typeof(pExchangeItemFix).FullName, ReceiveExchangeItemFix, null, true, SNet_ChannelType.GameOrderCritical);
     }
 
@@ -20,7 +20,16 @@ public class ExchangeItemManager
         GuiManager.PlayerLayer.Inventory.UpdateAllSlots(SNet.LocalPlayer, InventorySlot.None);
     }
 
-	private static void DoExchangeItem(ulong sender, pExchangeItemRequest data)
+    private static void DoExchangeItemValidate(pExchangeItemRequest data)
+	{
+        if (SNet.IsMaster)
+        {
+			DoExchangeItem(SNet.LocalPlayer.Lookup, data);
+        }
+    }
+
+
+    private static void DoExchangeItem(ulong sender, pExchangeItemRequest data)
 	{
         if (!SNet.IsMaster || !data.Source.TryGetPlayer(out var source) || !data.Target.TryGetPlayer(out var target))
 			return;
