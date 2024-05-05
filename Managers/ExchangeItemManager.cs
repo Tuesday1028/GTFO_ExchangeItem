@@ -244,11 +244,11 @@ public class ExchangeItemManager
 				break;
 			case ExchangeType.SourceToTarget:
 				prompt = string.Format(Prompt_SourceToTarget,
-					LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.Owner.NickName);
+					LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.PlayerName);
 				break;
 			case ExchangeType.Exchange:
 				prompt = string.Format(Prompt_Exchange,
-				LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.Owner.NickName, TargetAmmoInPack / num, TargetItem.ArchetypeName);
+				LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.PlayerName, TargetAmmoInPack / num, TargetItem.ArchetypeName);
 				break;
 			default:
 				prompt = string.Empty;
