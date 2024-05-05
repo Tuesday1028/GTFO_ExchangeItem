@@ -11,21 +11,18 @@ public class ExchangeItemManager
 {
 	public static void Setup()
 	{
-		s_ExchangeItemAction = SNetExt_AuthorativeAction<pExchangeItemAction>.Create(typeof(pExchangeItemAction).FullName, DoExchangeItem, DoExchangeItemValidation);
+		s_ExchangeItemRequestPacket = SNetExt_Packet<pExchangeItemRequest>.Create(typeof(pExchangeItemRequest).FullName, DoExchangeItem);
+		s_ExchangeItemFixPacket = SNetExt_Packet<pExchangeItemFix>.Create(typeof(pExchangeItemFix).FullName, ReceiveExchangeItemFix, null, true, SNet_ChannelType.GameOrderCritical);
     }
 
-    private static void DoExchangeItemValidation(pExchangeItemAction data)
+	private static void ReceiveExchangeItemFix(ulong sender, pExchangeItemFix data)
 	{
-        if (!data.Source.TryGetPlayer(out var source) || !data.Target.TryGetPlayer(out var target))
-        {
-            return;
-        }
-        s_ExchangeItemAction.Do(data);
+        GuiManager.PlayerLayer.Inventory.UpdateAllSlots(SNet.LocalPlayer, InventorySlot.None);
     }
 
-	private static void DoExchangeItem(ulong sender, pExchangeItemAction data)
+	private static void DoExchangeItem(ulong sender, pExchangeItemRequest data)
 	{
-        if (!data.Source.TryGetPlayer(out var source) || !data.Target.TryGetPlayer(out var target))
+        if (!SNet.IsMaster || !data.Source.TryGetPlayer(out var source) || !data.Target.TryGetPlayer(out var target))
 			return;
 
 		var sourceAgent = source.PlayerAgent.Cast<PlayerAgent>();
@@ -93,6 +90,7 @@ public class ExchangeItemManager
         }
 		sourceAgent.Sync.WantsToSetFlashlightEnabled(sourceFlashLightStatus);
 		targetAgent.Sync.WantsToSetFlashlightEnabled(targetFlashLightStatus);
+		s_ExchangeItemFixPacket.Send(default, source, target);
     }
 
     public static bool InteractionAllowed { get; private set; }
@@ -111,7 +109,7 @@ public class ExchangeItemManager
 	private static bool IsInteractionAllowed => MasterHasExchangeItem 
 		&& TargetPlayerAgent != null && exchangeType != ExchangeType.Invalid
 		&& LocalPlayerWieldingSlot != InventorySlot.ResourcePack
-		&& TargetPlayerAgent.Locomotion.m_currentStateEnum != PlayerLocomotion.PLOC_State.Downed && LocalPlayer.Locomotion.m_currentStateEnum != PlayerLocomotion.PLOC_State.Downed;
+		&& LocalPlayer.Locomotion.m_currentStateEnum != PlayerLocomotion.PLOC_State.Downed;
 
 	public static void DoClear()
 	{
@@ -229,7 +227,7 @@ public class ExchangeItemManager
 
     public static void WantToExchangeItem(SNet_Player target, InventorySlot slot)
 	{
-        s_ExchangeItemAction.Ask(new(SNet.LocalPlayer, target, slot));
+        s_ExchangeItemRequestPacket.Ask(new(SNet.LocalPlayer, target, slot));
     }
 
 	public static string GenerateExchangeItemPrompt()
@@ -322,12 +320,17 @@ public class ExchangeItemManager
 	private static ItemEquippable TargetWieldItem;
 	private static InventorySlot TargetWieldSlot;
 	private static ExchangeType exchangeType;
-    private static SNetExt_AuthorativeAction<pExchangeItemAction> s_ExchangeItemAction;
+    private static SNetExt_Packet<pExchangeItemRequest> s_ExchangeItemRequestPacket;
+    private static SNetExt_Packet<pExchangeItemFix> s_ExchangeItemFixPacket;
 }
 
-public struct pExchangeItemAction
+public struct pExchangeItemFix
 {
-	public pExchangeItemAction(SNet_Player source, SNet_Player target, InventorySlot slot)
+}
+
+public struct pExchangeItemRequest
+{
+	public pExchangeItemRequest(SNet_Player source, SNet_Player target, InventorySlot slot)
 	{
 		Source.SetPlayer(source);
 		Target.SetPlayer(target);
