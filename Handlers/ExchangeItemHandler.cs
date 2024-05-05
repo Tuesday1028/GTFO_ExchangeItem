@@ -90,12 +90,14 @@ namespace Hikaria.ExchangeItem.Handlers
         private static void StartInteraction()
         {
             GuiManager.InteractionLayer.InteractPromptVisible = true;
+            GuiManager.InteractionLayer.TimerVisible = true;
         }
 
         [HideFromIl2Cpp]
         private static void StopInteraction()
         {
             GuiManager.InteractionLayer.InteractPromptVisible = false;
+            GuiManager.InteractionLayer.TimerVisible = false;
         }
 
         [HideFromIl2Cpp]
