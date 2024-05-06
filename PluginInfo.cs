@@ -6,6 +6,6 @@
 
 		public const string NAME = "ExchangeItem";
 
-		public const string VERSION = "2.0.1";
+		public const string VERSION = "2.0.2";
 	}
 }
