@@ -3,6 +3,7 @@ using Hikaria.Core.SNetworkExt;
 using Player;
 using SNetwork;
 using System;
+using System.Collections.Generic;
 using static Hikaria.ExchangeItem.Features.ExchangeItem;
 
 namespace Hikaria.ExchangeItem.Managers;
@@ -11,8 +12,14 @@ public class ExchangeItemManager
 {
 	public static void Setup()
 	{
+		CoreAPI.OnPlayerModsSynced += OnPlayerModsSynced;
 		s_ExchangeItemRequestPacket = SNetExt_Packet<pExchangeItemRequest>.Create(typeof(pExchangeItemRequest).FullName, DoExchangeItem, DoExchangeItemValidate);
 		s_ExchangeItemFixPacket = SNetExt_Packet<pExchangeItemFix>.Create(typeof(pExchangeItemFix).FullName, ReceiveExchangeItemFix, null, true, SNet_ChannelType.GameOrderCritical);
+    }
+
+	private static void OnPlayerModsSynced(SNet_Player player, IEnumerable<pModInfo> mods)
+    {
+		MasterHasExchangeItem = CoreAPI.IsPlayerInstalledMod(SNet.Master, PluginInfo.GUID);
     }
 
 	private static void ReceiveExchangeItemFix(ulong sender, pExchangeItemFix data)
@@ -321,7 +328,7 @@ public class ExchangeItemManager
 		TargetAgent
 	}
 
-	public static bool MasterHasExchangeItem => CoreAPI.IsPlayerInstalledMod(SNet.Master, PluginInfo.GUID);
+	public static bool MasterHasExchangeItem;
     public static InventorySlot ExchangeSlot { get; private set; }
     public static LocalPlayerAgent LocalPlayer { get; internal set; }
     private static Item TargetItem;
