@@ -34,7 +34,9 @@ public class ExchangeItemManager
 
 	private static void ReceiveExchangeItemFix(ulong sender, pExchangeItemFix data)
 	{
-        GuiManager.PlayerLayer.Inventory.UpdateAllSlots(SNet.LocalPlayer, InventorySlot.None);
+		LocalPlayer.Sync.WantsToSetFlashlightEnabled(LastFlashLightStatus, true);
+        LocalPlayer.Inventory.ReceiveSetFlashlightStatus(LastFlashLightStatus, false);
+        GuiManager.PlayerLayer.Inventory.UpdateAllSlots(SNet.LocalPlayer, LocalPlayer.Inventory.WieldedSlot);
     }
 
     private static void DoExchangeItemValidate(pExchangeItemRequest data)
@@ -51,11 +53,6 @@ public class ExchangeItemManager
         if (!SNet.IsMaster || !data.Source.TryGetPlayer(out var source) || !data.Target.TryGetPlayer(out var target))
 			return;
 
-		var sourceAgent = source.PlayerAgent.Cast<PlayerAgent>();
-		var targetAgent = target.PlayerAgent.Cast<PlayerAgent>();
-
-		var sourceFlashLightStatus = sourceAgent.Inventory.WantsFlashlightEnabled;
-		var targetFlashLightStatus = targetAgent.Inventory.WantsFlashlightEnabled;
         while (true)
 		{
             var inventorySlot = data.Slot;
@@ -114,8 +111,7 @@ public class ExchangeItemManager
             }
 			return;
         }
-		sourceAgent.Sync.WantsToSetFlashlightEnabled(sourceFlashLightStatus);
-		targetAgent.Sync.WantsToSetFlashlightEnabled(targetFlashLightStatus);
+
 		s_ExchangeItemFixPacket.Send(default, source, target);
     }
 
@@ -253,6 +249,7 @@ public class ExchangeItemManager
 
     public static void WantToExchangeItem(SNet_Player target, InventorySlot slot)
 	{
+		LastFlashLightStatus = LocalPlayer.Inventory.WantsFlashlightEnabled;
         s_ExchangeItemRequestPacket.Ask(new(SNet.LocalPlayer, target, slot));
     }
 
@@ -346,6 +343,7 @@ public class ExchangeItemManager
 	private static ItemEquippable TargetWieldItem;
 	private static InventorySlot TargetWieldSlot;
 	private static ExchangeType exchangeType;
+	private static bool LastFlashLightStatus;
     private static SNetExt_Packet<pExchangeItemRequest> s_ExchangeItemRequestPacket;
     private static SNetExt_Packet<pExchangeItemFix> s_ExchangeItemFixPacket;
 }
