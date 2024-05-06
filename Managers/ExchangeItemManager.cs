@@ -3,7 +3,6 @@ using Hikaria.Core.SNetworkExt;
 using Player;
 using SNetwork;
 using System;
-using System.Collections.Generic;
 using static Hikaria.ExchangeItem.Features.ExchangeItem;
 
 namespace Hikaria.ExchangeItem.Managers;
@@ -12,12 +11,12 @@ public class ExchangeItemManager
 {
 	public static void Setup()
 	{
-		CoreAPI.OnPlayerModsSynced += OnPlayerModsSynced;
+		GameEventAPI.OnMasterChanged += OnMasterChanged;
 		s_ExchangeItemRequestPacket = SNetExt_Packet<pExchangeItemRequest>.Create(typeof(pExchangeItemRequest).FullName, DoExchangeItem, DoExchangeItemValidate);
 		s_ExchangeItemFixPacket = SNetExt_Packet<pExchangeItemFix>.Create(typeof(pExchangeItemFix).FullName, ReceiveExchangeItemFix, null, true, SNet_ChannelType.GameOrderCritical);
     }
 
-	private static void OnPlayerModsSynced(SNet_Player player, IEnumerable<pModInfo> mods)
+	private static void OnMasterChanged()
     {
 		MasterHasExchangeItem = CoreAPI.IsPlayerInstalledMod(SNet.Master, PluginInfo.GUID);
     }
