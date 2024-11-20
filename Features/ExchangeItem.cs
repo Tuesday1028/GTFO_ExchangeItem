@@ -1,9 +1,11 @@
-﻿using Hikaria.ExchangeItem.Handlers;
+﻿using Gear;
+using Hikaria.ExchangeItem.Handlers;
 using Hikaria.ExchangeItem.Managers;
 using Player;
 using TheArchive.Core.Attributes;
 using TheArchive.Core.Attributes.Feature.Settings;
 using TheArchive.Core.FeaturesAPI;
+using TheArchive.Core.Localization;
 using TheArchive.Loader;
 using UnityEngine;
 
@@ -17,7 +19,7 @@ public class ExchangeItem : Feature
 
     public override bool InlineSettingsIntoParentMenu => true;
 
-    public static ExchangeItem Instance { get; private set; }
+    public static new ILocalizationService Localization { get; set; }
 
     [FeatureConfig]
     public static ExchangeItemSetting Settings { get; set; }
@@ -28,9 +30,9 @@ public class ExchangeItem : Feature
         public KeyCode ExchangeItemKey { get => ExchangeItemHandler.ExchangeItemKey; set => ExchangeItemHandler.ExchangeItemKey = value; }
     }
 
-    public static string Prompt_Exchange => Instance.Localization.Get(1);
-    public static string Prompt_TargetToSource => Instance.Localization.Get(2);
-    public static string Prompt_SourceToTarget => Instance.Localization.Get(3);
+    public static string Prompt_Exchange => Localization.Get(1);
+    public static string Prompt_TargetToSource => Localization.Get(2);
+    public static string Prompt_SourceToTarget => Localization.Get(3);
 
     [ArchivePatch(typeof(PlayerInteraction), nameof(PlayerInteraction.UpdateWorldInteractions))]
     private class PlayerInteraction__UpdateWorldInteractions__Patch
@@ -61,8 +63,6 @@ public class ExchangeItem : Feature
 
     public override void Init()
     {
-        Instance = this;
-
         LoaderWrapper.ClassInjector.RegisterTypeInIl2Cpp<ExchangeItemHandler>();
         LoaderWrapper.ClassInjector.RegisterTypeInIl2Cpp<ExchangeItemUpdater>();
 

@@ -6,11 +6,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static Hikaria.ExchangeItem.Features.ExchangeItem;
+using Version = Hikaria.Core.Version;
 
 namespace Hikaria.ExchangeItem.Managers;
 
 public class ExchangeItemManager
 {
+	private static readonly Version MinVersion = new Version(2, 0, 0);
+
 	public static void Setup()
 	{
 		CoreAPI.OnPlayerModsSynced += OnPlayerModsSynced;
@@ -23,13 +26,13 @@ public class ExchangeItemManager
     {
         if (player.IsMaster)
         {
-            MasterHasExchangeItem = mods.Any(m => m.GUID == PluginInfo.GUID);
+            MasterHasExchangeItem = mods.Any(m => m.GUID == PluginInfo.GUID && m.Version >= MinVersion);
         }
     }
 
     private static void OnMasterChanged()
     {
-        MasterHasExchangeItem = CoreAPI.IsPlayerInstalledMod(SNet.Master, PluginInfo.GUID);
+        MasterHasExchangeItem = CoreAPI.IsPlayerInstalledMod(SNet.Master, PluginInfo.GUID, MinVersion);
     }
 
 	private static void ReceiveExchangeItemFix(ulong sender, pExchangeItemFix data)
@@ -261,15 +264,15 @@ public class ExchangeItemManager
 		{
 			case ExchangeType.TargetToSource:
 				prompt = string.Format(Prompt_TargetToSource,
-					TargetPlayerAgent.PlayerName, TargetAmmoInPack / num, TargetItem.ArchetypeName);
+					TargetPlayerAgent.GetColoredName(), TargetAmmoInPack / num, TargetItem.ArchetypeName);
 				break;
 			case ExchangeType.SourceToTarget:
 				prompt = string.Format(Prompt_SourceToTarget,
-					LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.PlayerName);
+					LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.GetColoredName());
 				break;
 			case ExchangeType.Exchange:
 				prompt = string.Format(Prompt_Exchange,
-				LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.PlayerName, TargetAmmoInPack / num, TargetItem.ArchetypeName);
+				LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.GetColoredName(), TargetAmmoInPack / num, TargetItem.ArchetypeName);
 				break;
 			default:
 				prompt = string.Empty;
