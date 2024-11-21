@@ -1,9 +1,7 @@
-﻿using System.Collections.Generic;
-using TheArchive.Core;
+﻿using TheArchive.Core;
 using TheArchive.Core.Attributes;
+using TheArchive.Core.FeaturesAPI;
 using TheArchive.Core.Localization;
-
-[assembly: ModDefaultFeatureGroupName("Exchange Item")]
 
 namespace Hikaria.ExchangeItem;
 
@@ -37,10 +35,8 @@ public class EntryPoint : IArchiveModule
 
     public ArchiveLegacyPatcher Patcher { get; set; }
 
-    public string ModuleGroup => "Exchange Item";
-
-    public Dictionary<Language, string> ModuleGroupLanguages => new()
+    public string ModuleGroup => FeatureGroups.GetOrCreateModuleGroup("Exchange Item", new()
     {
         { Language.English, "Exchange Item" }, { Language.Chinese, "资源交换" }
-    };
+    });
 }

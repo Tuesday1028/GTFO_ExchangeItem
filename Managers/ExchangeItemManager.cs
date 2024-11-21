@@ -2,10 +2,8 @@
 using Hikaria.Core.SNetworkExt;
 using Player;
 using SNetwork;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using static Hikaria.ExchangeItem.Features.ExchangeItem;
 using Version = Hikaria.Core.Version;
 
 namespace Hikaria.ExchangeItem.Managers;
@@ -18,7 +16,7 @@ public class ExchangeItemManager
 	{
 		CoreAPI.OnPlayerModsSynced += OnPlayerModsSynced;
 		GameEventAPI.OnMasterChanged += OnMasterChanged;
-		s_ExchangeItemRequestPacket = SNetExt_Packet<pExchangeItemRequest>.Create(typeof(pExchangeItemRequest).FullName, DoExchangeItem, DoExchangeItemValidate);
+		s_ExchangeItemRequestPacket = SNetExt_Packet<pExchangeItemRequest>.Create(typeof(pExchangeItemRequest).FullName, MasterDoExchangeItem, DoExchangeItemValidate);
 		s_ExchangeItemFixPacket = SNetExt_Packet<pExchangeItemFix>.Create(typeof(pExchangeItemFix).FullName, ReceiveExchangeItemFix, null, true, SNet_ChannelType.GameOrderCritical);
     }
 
@@ -37,21 +35,25 @@ public class ExchangeItemManager
 
 	private static void ReceiveExchangeItemFix(ulong sender, pExchangeItemFix data)
 	{
-		LocalPlayer.Sync.WantsToSetFlashlightEnabled(LastFlashLightStatus, true);
-        LocalPlayer.Inventory.ReceiveSetFlashlightStatus(LastFlashLightStatus, false);
-        GuiManager.PlayerLayer.Inventory.UpdateAllSlots(SNet.LocalPlayer, LocalPlayer.Inventory.WieldedSlot);
+		var localPlayerAgent = PlayerManager.GetLocalPlayerAgent();
+        if (localPlayerAgent == null)
+            return;
+
+        localPlayerAgent.Sync.WantsToSetFlashlightEnabled(LastFlashLightStatus, true);
+        localPlayerAgent.Inventory.ReceiveSetFlashlightStatus(LastFlashLightStatus, false);
+        GuiManager.PlayerLayer.Inventory.UpdateAllSlots(SNet.LocalPlayer, localPlayerAgent.Inventory.WieldedSlot);
     }
 
     private static void DoExchangeItemValidate(pExchangeItemRequest data)
 	{
         if (SNet.IsMaster)
         {
-			DoExchangeItem(SNet.LocalPlayer.Lookup, data);
+			MasterDoExchangeItem(SNet.LocalPlayer.Lookup, data);
         }
     }
 
 
-    private static void DoExchangeItem(ulong sender, pExchangeItemRequest data)
+    private static void MasterDoExchangeItem(ulong sender, pExchangeItemRequest data)
 	{
         if (!SNet.IsMaster || !data.Source.TryGetPlayer(out var source) || !data.Target.TryGetPlayer(out var target))
 			return;
@@ -115,238 +117,30 @@ public class ExchangeItemManager
 			return;
         }
 
-		s_ExchangeItemFixPacket.Send(default, source, target);
+        if (!source.IsBot)
+		    s_ExchangeItemFixPacket.Send(default, source);
+        if (!target.IsBot)
+            s_ExchangeItemFixPacket.Send(default, target);
     }
 
-    public static bool InteractionAllowed { get; private set; }
-
-	public static event Action OnUpdated;
-
-	public static void Update()
-	{
-		SetInventoryItem();
-		InteractionAllowed = IsInteractionAllowed;
-		var onUpdated = OnUpdated;
-		if (OnUpdated != null)
-			onUpdated();
-	}
-
-	private static bool IsInteractionAllowed => MasterHasExchangeItem 
-		&& TargetPlayerAgent != null && exchangeType != ExchangeType.Invalid
-		&& LocalPlayerWieldingSlot != InventorySlot.ResourcePack
-		&& LocalPlayer.Locomotion.m_currentStateEnum != PlayerLocomotion.PLOC_State.Downed;
-
-	public static void DoClear()
-	{
-		InteractionAllowed = false;
-		LocalPlayerWieldingItem = null;
-		LocalPlayerWieldingSlot = InventorySlot.None;
-		TargetWieldItem = null;
-		TargetWieldSlot = InventorySlot.None;
-		LocalItem = null;
-		LocalPlayerAmmoInPack = 0f;
-		TargetItem = null;
-		TargetAmmoInPack = 0f;
-		exchangeType = ExchangeType.Invalid;
-	}
-
-	public static PlayerAgent TargetPlayerAgent { get; private set; }
-
-	public static ItemEquippable LocalPlayerWieldingItem { get; private set; }
-
-	public static InventorySlot LocalPlayerWieldingSlot { get; private set; }
-
-	public static void SetTargetPlayerAgent(PlayerAgent targetPlayerAgent)
-	{
-		IntPtr intPtr = IntPtr.Zero;
-		IntPtr intPtr2 = IntPtr.Zero;
-		if (TargetPlayerAgent != null)
-		{
-			intPtr = TargetPlayerAgent.Pointer;
-		}
-		if (targetPlayerAgent != null)
-		{
-			intPtr2 = targetPlayerAgent.Pointer;
-		}
-		if (intPtr != intPtr2)
-		{
-			TargetPlayerAgent = targetPlayerAgent;
-			Update();
-		}
-	}
-
-	public static float TargetAmmoInPack { get; private set; }
-	public static float LocalPlayerAmmoInPack { get; private set; }
-
-	public static void SetInventoryItem()
-	{
-		ExchangeSlot = InventorySlot.ResourcePack;
-		InventorySlot inventorySlot = InventorySlot.ResourcePack;
-		AmmoType ammoType = AmmoType.ResourcePackRel;
-		if (LocalPlayerWieldingSlot == InventorySlot.Consumable)
-		{
-			ExchangeSlot = InventorySlot.Consumable;
-			inventorySlot = InventorySlot.Consumable;
-			ammoType = AmmoType.CurrentConsumable;
-		}
-		while (true)
-		{
-			if (TargetPlayerAgent == null || !PlayerBackpackManager.TryGetBackpack(TargetPlayerAgent.Owner, out var backpack))
-			{
-				goto Invalid;
-			}
-			bool flag = backpack.TryGetBackpackItem(inventorySlot, out var backpackItem);
-			bool flag2 = PlayerBackpackManager.LocalBackpack.TryGetBackpackItem(inventorySlot, out var backpackItem2);
-            if (flag)
-			{
-				TargetAmmoInPack = backpack.AmmoStorage.GetAmmoInPack(ammoType);
-				TargetItem = backpackItem.Instance;
-			}
-			else
-			{
-				TargetItem = null;
-				TargetAmmoInPack = 0f;
-			}
-			if (flag2)
-			{
-				LocalPlayerAmmoInPack = PlayerBackpackManager.LocalBackpack.AmmoStorage.GetAmmoInPack(ammoType);
-				LocalItem = backpackItem2.Instance;
-			}
-			else
-			{
-				LocalItem = null;
-				LocalPlayerAmmoInPack = 0f;
-			}
-			if (flag && flag2)
-			{
-				goto Exchange;
-			}
-			if (!flag && flag2)
-			{
-				goto SourceToTarget;
-			}
-			if (!flag2 && flag)
-			{
-				goto TargetToSource;
-			}
-			if (inventorySlot != InventorySlot.ResourcePack)
-			{
-				goto Invalid;
-			}
-			ExchangeSlot = InventorySlot.Consumable;
-			inventorySlot = InventorySlot.Consumable;
-			ammoType = AmmoType.CurrentConsumable;
-		}
-	TargetToSource:
-		exchangeType = ExchangeType.TargetToSource;
-		return;
-	Exchange:
-		exchangeType = ExchangeType.Exchange;
-		return;
-	SourceToTarget:
-		exchangeType = ExchangeType.SourceToTarget;
-		return;
-	Invalid:
-		exchangeType = ExchangeType.Invalid;
-	}
+	public static float ReceiverAmmoInPack { get; private set; }
+	public static float LocalAmmoInPack { get; private set; }
 
     public static void WantToExchangeItem(SNet_Player target, InventorySlot slot)
 	{
-		LastFlashLightStatus = LocalPlayer.Inventory.WantsFlashlightEnabled;
+		var localPlayerAgent = PlayerManager.GetLocalPlayerAgent();
+		if (localPlayerAgent == null)
+			return;
+
+        LastFlashLightStatus = localPlayerAgent.Inventory.WantsFlashlightEnabled;
         s_ExchangeItemRequestPacket.Ask(new(SNet.LocalPlayer, target, slot));
     }
 
-	public static string GenerateExchangeItemPrompt()
-	{
-		string prompt;
-        float num = (ExchangeSlot == InventorySlot.ResourcePack) ? 20f : 1f;
-		switch (exchangeType)
-		{
-			case ExchangeType.TargetToSource:
-				prompt = string.Format(Prompt_TargetToSource,
-					TargetPlayerAgent.GetColoredName(), TargetAmmoInPack / num, TargetItem.ArchetypeName);
-				break;
-			case ExchangeType.SourceToTarget:
-				prompt = string.Format(Prompt_SourceToTarget,
-					LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.GetColoredName());
-				break;
-			case ExchangeType.Exchange:
-				prompt = string.Format(Prompt_Exchange,
-				LocalPlayerAmmoInPack / num, LocalItem.ArchetypeName, TargetPlayerAgent.GetColoredName(), TargetAmmoInPack / num, TargetItem.ArchetypeName);
-				break;
-			default:
-				prompt = string.Empty;
-				break;
-		}
-		return prompt;
-	}
 
-	public static void SetWieldingItem(ItemEquippable wieldingItem, InventorySlot slot, AgentType agentType)
-	{
-		if (agentType == AgentType.LocalAgent)
-		{
-			IntPtr intPtr = IntPtr.Zero;
-			IntPtr intPtr2 = IntPtr.Zero;
-			if (LocalPlayerWieldingItem != null)
-			{
-				intPtr = LocalPlayerWieldingItem.Pointer;
-			}
-			if (wieldingItem != null)
-			{
-				intPtr2 = wieldingItem.Pointer;
-			}
-			if (intPtr != intPtr2)
-			{
-				LocalPlayerWieldingItem = wieldingItem;
-				LocalPlayerWieldingSlot = slot;
-				Update();
-				return;
-			}
-		}
-		else
-		{
-			IntPtr intPtr3 = IntPtr.Zero;
-			IntPtr intPtr4 = IntPtr.Zero;
-			if (TargetWieldItem != null)
-			{
-				intPtr3 = TargetWieldItem.Pointer;
-			}
-			if (wieldingItem != null)
-			{
-				intPtr4 = wieldingItem.Pointer;
-			}
-			if (intPtr3 != intPtr4)
-			{
-				TargetWieldItem = wieldingItem;
-				TargetWieldSlot = slot;
-				Update();
-			}
-		}
-	}
+	public static bool MasterHasExchangeItem { get; private set; }
 
-	public enum ExchangeType : byte
-	{
-		TargetToSource,
-		SourceToTarget,
-		Exchange,
-        Invalid
-    }
+    private static bool LastFlashLightStatus;
 
-	public enum AgentType : byte
-    {
-		LocalAgent,
-		TargetAgent
-	}
-
-	public static bool MasterHasExchangeItem;
-    public static InventorySlot ExchangeSlot { get; private set; }
-    public static LocalPlayerAgent LocalPlayer { get; internal set; }
-    private static Item TargetItem;
-	private static Item LocalItem;
-	private static ItemEquippable TargetWieldItem;
-	private static InventorySlot TargetWieldSlot;
-	private static ExchangeType exchangeType;
-	private static bool LastFlashLightStatus;
     private static SNetExt_Packet<pExchangeItemRequest> s_ExchangeItemRequestPacket;
     private static SNetExt_Packet<pExchangeItemFix> s_ExchangeItemFixPacket;
 }

@@ -35,30 +35,39 @@
     "FeatureSettingsEnumTexts": {},
     "ExtraTexts": [
       {
-        "UntranslatedText": "Swap {0} times {1} with {2} {3} times {4}",
+        "UntranslatedText": "用{0} [{1}] 与 {2} 交换{3} [{4}]",
         "Description": "Exchange",
         "ID": 1,
         "Languages": {
-          "English": "Swap {0} times {1} with {2} {3} times {4}",
-          "Chinese": "用 {0} 次 {1} 与 {2} 交换 {3} 次 {4}"
+          "English": "Swap{0} [{1}] with {2}{3} [{4}]",
+          "Chinese": "用{0} [{1}] 与 {2} 交换{3} [{4}]"
         }
       },
       {
-        "UntranslatedText": "Get {1} times {2} from {0}",
-        "Description": "TargetToSource",
+        "UntranslatedText": "从 {0} 获取{1} [{2}]",
+        "Description": "Get",
         "ID": 2,
         "Languages": {
-          "English": "Get {1} times {2} from {0}",
-          "Chinese": "从 {0} 获取 {1} 次 {2}"
+          "English": "Get{1} [{2}] from {0}",
+          "Chinese": "从 {0} 获取{1} [{2}]"
         }
       },
       {
-        "UntranslatedText": "Give {0} times {1} to {2}",
-        "Description": "SourceToTarget",
+        "UntranslatedText": "把{0} [{1}] 给 {2}",
+        "Description": "Give",
         "ID": 3,
         "Languages": {
-          "English": "Give {0} times {1} to {2}",
-          "Chinese": "把 {0} 次 {1} 给 {2}"
+          "English": "Give{0} [{1}] to {2}",
+          "Chinese": "把{0} [{1}] 给 {2}"
+        }
+      },
+      {
+        "UntranslatedText": "[{0}] 次",
+        "Description": "Times",
+        "ID": 4,
+        "Languages": {
+          "English": "[{0}] time",
+          "Chinese": "[{0}] 次"
         }
       }
     ]
