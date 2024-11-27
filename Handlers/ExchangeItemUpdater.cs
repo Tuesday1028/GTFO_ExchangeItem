@@ -61,7 +61,8 @@ namespace Hikaria.ExchangeItem.Handlers
 
         private void UpdateInteraction()
         {
-            if (!ExchangeItemManager.MasterHasExchangeItem || m_localPlayer.Interaction.HasWorldInteraction || !IsExchangeItemInertactionAllowed)
+            if (!ExchangeItemManager.MasterHasExchangeItem 
+                || m_localPlayer.Interaction.HasWorldInteraction || (!m_localPlayer.Inventory.WieldedItem?.AllowPlayerInteraction ?? false) || !m_localPlayer.Alive)
                 return;
 
             if (!m_interactExchangeItem.TimerIsActive)
@@ -222,9 +223,6 @@ namespace Hikaria.ExchangeItem.Handlers
 
         private ExchangeType m_exchangeType;
         private InventorySlot m_exchangeSlot;
-
-        private bool IsExchangeItemInertactionAllowed => m_localPlayer.Interaction.HasWorldInteraction
-            || (m_localPlayer.Inventory.WieldedItem?.AllowPlayerInteraction ?? false) || m_localPlayer.Alive;
 
         private Core.Components.Interact_ManualTimedWithCallback m_interactExchangeItem;
 
