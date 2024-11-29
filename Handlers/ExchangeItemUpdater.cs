@@ -7,6 +7,8 @@ namespace Hikaria.ExchangeItem.Handlers
 {
     internal sealed class ExchangeItemUpdater : MonoBehaviour
     {
+        private ResourcePackFirstPerson m_wieldResourcePack;
+
         private void Awake()
         {
             m_localPlayer = GetComponent<LocalPlayerAgent>();
@@ -36,6 +38,7 @@ namespace Hikaria.ExchangeItem.Handlers
             {
                 m_interactExchangeItem.PlayerSetSelected(false, m_localPlayer);
             }
+            m_wieldResourcePack = m_localPlayer.Inventory.WieldedItem?.TryCast<ResourcePackFirstPerson>();
         }
 
         public void OnInteractionKeyChanged()
@@ -62,7 +65,7 @@ namespace Hikaria.ExchangeItem.Handlers
         private void UpdateInteraction()
         {
             if (!ExchangeItemManager.MasterHasExchangeItem 
-                || m_localPlayer.Interaction.HasWorldInteraction || (!m_localPlayer.Inventory.WieldedItem?.AllowPlayerInteraction ?? false) || !m_localPlayer.Alive)
+                || m_localPlayer.Interaction.HasWorldInteraction || (!m_localPlayer.Inventory.WieldedItem?.AllowPlayerInteraction ?? false) || (m_wieldResourcePack?.m_interactApplyResource.TimerIsActive ?? false) || !m_localPlayer.Alive)
                 return;
 
             if (!m_interactExchangeItem.TimerIsActive)

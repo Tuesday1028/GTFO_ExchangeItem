@@ -123,9 +123,6 @@ public class ExchangeItemManager
             s_ExchangeItemFixPacket.Send(default, target);
     }
 
-	public static float ReceiverAmmoInPack { get; private set; }
-	public static float LocalAmmoInPack { get; private set; }
-
     public static void WantToExchangeItem(SNet_Player target, InventorySlot slot)
 	{
 		var localPlayerAgent = PlayerManager.GetLocalPlayerAgent();
