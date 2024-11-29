@@ -177,18 +177,12 @@ namespace Hikaria.ExchangeItem.Handlers
             }
 
             var flag = m_exchangeType != ExchangeType.Invalid;
+            var preIsActive = m_interactExchangeItem.TimerIsActive;
             m_interactExchangeItem.ManualUpdateWithCondition(flag, m_localPlayer, flag);
-            if (flag && m_interactExchangeItem.TimerIsActive)
+            if (flag && !preIsActive && m_interactExchangeItem.TimerIsActive)
             {
                 m_localPlayer.Sync.SendGenericInteract(m_exchangeType == ExchangeType.Give ? pGenericInteractAnimation.TypeEnum.GiveResource : GetReachHeight(), false);
             }
-
-            if (GuiManager.InteractionLayer.m_timedPromptRoutine != null)
-            {
-                CoroutineManager.StopCoroutine(GuiManager.InteractionLayer.m_timedPromptRoutine);
-                GuiManager.InteractionLayer.m_timedPromptRoutine = null;
-            }
-
             return true;
         }
 
