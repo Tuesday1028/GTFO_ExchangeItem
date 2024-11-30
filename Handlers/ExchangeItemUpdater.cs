@@ -1,5 +1,6 @@
 ﻿using Gear;
 using Hikaria.ExchangeItem.Managers;
+using Localization;
 using Player;
 using UnityEngine;
 
@@ -8,6 +9,34 @@ namespace Hikaria.ExchangeItem.Handlers
     internal sealed class ExchangeItemUpdater : MonoBehaviour
     {
         private ResourcePackFirstPerson m_wieldResourcePack;
+        private bool m_lastKeyDown;
+        private bool m_keyReleased = true;
+
+        private bool m_localItemInfAmmo;
+        private bool m_targetItemInfAmmo;
+
+        private int m_localItemTimes;
+        private int m_receiverItemTimes;
+
+        private bool m_localHasResourcePack;
+        private bool m_localHasConsumable;
+        private bool m_receiverHasResourcePack;
+        private bool m_receiverHasConsumable;
+
+        private bool m_allowGive;
+        private bool m_allowGet;
+        private bool m_allowExchange;
+        private bool m_allowGetResourcePack;
+        private bool m_allowGetConsumable;
+
+        private BackpackItem m_receiverConsumableBPItem;
+        private BackpackItem m_localConsumableBPItem;
+        private BackpackItem m_receiverResourcePackBPItem;
+        private BackpackItem m_localResourcePackBPItem;
+
+        private PlayerBackpack m_receiverBackpack;
+
+        private InventorySlot m_localWieldSlot;
 
         private void Awake()
         {
@@ -21,14 +50,20 @@ namespace Hikaria.ExchangeItem.Handlers
 
         private void Update()
         {
+            if (!ExchangeItemManager.MasterHasExchangeItem || m_localPlayer.Interaction.HasWorldInteraction
+                || (!m_localPlayer.Inventory.WieldedItem?.AllowPlayerInteraction ?? false)
+                || (m_wieldResourcePack?.m_interactApplyResource.TimerIsActive ?? false)
+                || !m_localPlayer.Alive)
+            {
+                if (m_interactExchangeItem.TimerIsActive)
+                    m_interactExchangeItem.PlayerSetSelected(false, m_localPlayer);
+
+                return;
+            }
+
             if (!m_localPlayer.Interaction.HasWorldInteraction && !m_localPlayer.FPItemHolder.ItemHiddenTrigger)
             {
                 UpdateInteraction();
-                return;
-            }
-            if (m_interactExchangeItem.TimerIsActive)
-            {
-                m_interactExchangeItem.PlayerSetSelected(false, m_localPlayer);
             }
         }
 
@@ -38,6 +73,7 @@ namespace Hikaria.ExchangeItem.Handlers
             {
                 m_interactExchangeItem.PlayerSetSelected(false, m_localPlayer);
             }
+            m_localWieldSlot = m_localPlayer.Inventory.WieldedSlot;
             m_wieldResourcePack = m_localPlayer.Inventory.WieldedItem?.TryCast<ResourcePackFirstPerson>();
         }
 
@@ -62,12 +98,8 @@ namespace Hikaria.ExchangeItem.Handlers
             m_interactExchangeItem.SetAction(targetName, Features.ExchangeItem.Settings.ExchangeItemKey);
         }
 
-        private void UpdateInteraction()
+        private bool UpdateInteraction()
         {
-            if (!ExchangeItemManager.MasterHasExchangeItem 
-                || m_localPlayer.Interaction.HasWorldInteraction || (!m_localPlayer.Inventory.WieldedItem?.AllowPlayerInteraction ?? false) || (m_wieldResourcePack?.m_interactApplyResource.TimerIsActive ?? false) || !m_localPlayer.Alive)
-                return;
-
             if (!m_interactExchangeItem.TimerIsActive)
             {
                 m_actionReceiver = null;
@@ -87,12 +119,22 @@ namespace Hikaria.ExchangeItem.Handlers
                 }
             }
 
-            UpdateInteractionDetails();
+            return UpdateInteractionDetails();
         }
 
         private bool UpdateInteractionDetails()
         {
-            if (!m_actionReceiver || !PlayerBackpackManager.TryGetBackpack(m_actionReceiver.Owner, out var receiverBackpack))
+            if (!m_keyReleased)
+            {
+                m_keyReleased = !Input.GetKey(m_interactExchangeItem.InputKey);
+                if (!m_keyReleased)
+                {
+                    m_interactExchangeItem.PlayerSetSelected(false, m_localPlayer);
+                    return false;
+                }
+            }
+
+            if (!m_actionReceiver || !PlayerBackpackManager.TryGetBackpack(m_actionReceiver.Owner, out m_receiverBackpack))
             {
                 m_exchangeType = ExchangeType.Invalid;
                 m_exchangeSlot = InventorySlot.None;
@@ -101,34 +143,30 @@ namespace Hikaria.ExchangeItem.Handlers
                 return false;
             }
 
-            var localBackpack = PlayerBackpackManager.LocalBackpack;
+            m_localHasResourcePack = PlayerBackpackManager.LocalBackpack.TryGetBackpackItem(InventorySlot.ResourcePack, out m_localResourcePackBPItem) && m_localResourcePackBPItem.Instance != null;
+            m_localHasConsumable = PlayerBackpackManager.LocalBackpack.TryGetBackpackItem(InventorySlot.Consumable, out m_localConsumableBPItem) && m_localConsumableBPItem.Instance != null;
+            m_receiverHasResourcePack = m_receiverBackpack.TryGetBackpackItem(InventorySlot.ResourcePack, out m_receiverResourcePackBPItem) && m_receiverResourcePackBPItem.Instance != null;
+            m_receiverHasConsumable = m_receiverBackpack.TryGetBackpackItem(InventorySlot.Consumable, out m_receiverConsumableBPItem) && m_receiverConsumableBPItem.Instance != null;
 
-            var localHasResourcePack = localBackpack.TryGetBackpackItem(InventorySlot.ResourcePack, out var localResourcePackBPItem) && localResourcePackBPItem.Instance != null;
-            var localHasConsumable = localBackpack.TryGetBackpackItem(InventorySlot.Consumable, out var localConsumableBPItem) && localConsumableBPItem.Instance != null;
-            var receiverHasResourcePack = receiverBackpack.TryGetBackpackItem(InventorySlot.ResourcePack, out var receiverResourcePackBPItem) && receiverResourcePackBPItem.Instance != null;
-            var receiverHasConsumable = receiverBackpack.TryGetBackpackItem(InventorySlot.Consumable, out var receiverConsumableBPItem) && receiverConsumableBPItem.Instance != null;
+            m_allowGive = (m_localWieldSlot == InventorySlot.ResourcePack && !m_receiverHasResourcePack) || (m_localWieldSlot == InventorySlot.Consumable && !m_receiverHasConsumable);
+            m_allowExchange = ((m_localWieldSlot == InventorySlot.ResourcePack && m_receiverHasResourcePack) || (m_localWieldSlot == InventorySlot.Consumable && m_receiverHasConsumable));
+            m_allowGetConsumable = !m_localHasConsumable && m_receiverHasConsumable;
+            m_allowGetResourcePack = !m_localHasResourcePack && m_receiverHasResourcePack;
+            m_allowGet = m_allowGetConsumable || m_allowGetResourcePack;
 
-            var wieldSlot = m_localPlayer.Inventory.WieldedSlot;
-
-            var allowGive = (wieldSlot == InventorySlot.ResourcePack && !receiverHasResourcePack) || (wieldSlot == InventorySlot.Consumable && !receiverHasConsumable);
-            var allowExchange = (wieldSlot == InventorySlot.ResourcePack && receiverHasResourcePack) || (wieldSlot == InventorySlot.Consumable && receiverHasConsumable);
-            var allowGetConsumable = !localHasConsumable && receiverHasConsumable;
-            var allowGetResourcePack = !localHasResourcePack && receiverHasResourcePack;
-            var allowGet = allowGetConsumable || allowGetResourcePack;
-
-            if (allowExchange)
+            if (m_allowExchange)
             {
-                m_exchangeSlot = wieldSlot;
+                m_exchangeSlot = m_localWieldSlot;
                 m_exchangeType = ExchangeType.Exchange;
             }
-            else if (allowGive)
+            else if (m_allowGive)
             {
-                m_exchangeSlot = wieldSlot;
+                m_exchangeSlot = m_localWieldSlot;
                 m_exchangeType = ExchangeType.Give;
             }
-            else if (allowGet)
+            else if (m_allowGet)
             {
-                m_exchangeSlot = allowGetResourcePack ? InventorySlot.ResourcePack : InventorySlot.Consumable;
+                m_exchangeSlot = m_allowGetResourcePack ? InventorySlot.ResourcePack : InventorySlot.Consumable;
                 m_exchangeType = ExchangeType.Get;
             }
             else
@@ -139,13 +177,13 @@ namespace Hikaria.ExchangeItem.Handlers
 
             if (m_exchangeSlot == InventorySlot.ResourcePack)
             {
-                m_localItem = localHasResourcePack ? localResourcePackBPItem.Instance : null;
-                m_targetItem = receiverHasResourcePack ? receiverResourcePackBPItem.Instance : null;
+                m_localItem = m_localHasResourcePack ? m_localResourcePackBPItem.Instance : null;
+                m_targetItem = m_receiverHasResourcePack ? m_receiverResourcePackBPItem.Instance : null;
             }
             else if (m_exchangeSlot == InventorySlot.Consumable)
             {
-                m_localItem = localHasConsumable ? localConsumableBPItem.Instance : null;
-                m_targetItem = receiverHasConsumable ? receiverConsumableBPItem.Instance : null;
+                m_localItem = m_localHasConsumable ? m_localConsumableBPItem.Instance : null;
+                m_targetItem = m_receiverHasConsumable ? m_receiverConsumableBPItem.Instance : null;
             }
             else
             {
@@ -153,27 +191,31 @@ namespace Hikaria.ExchangeItem.Handlers
                 m_targetItem = null;
             }
 
-            var localItemInfAmmo = m_localItem?.ItemDataBlock?.GUIShowAmmoInfinite ?? false;
-            var targetItemInfAmmo = m_targetItem?.ItemDataBlock?.GUIShowAmmoInfinite ?? false;
-            var receiverItemTimes = receiverBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
-            var localItemTimes = localBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
 
-            string receiverTimes = targetItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, receiverItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && receiverItemTimes > 1 ? "s" : string.Empty)}";
-            string localTimes = localItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, localItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && localItemTimes > 1 ? "s" : string.Empty)}";
+            m_localItemInfAmmo = m_localItem?.ItemDataBlock?.GUIShowAmmoInfinite ?? false;
+            m_targetItemInfAmmo = m_targetItem?.ItemDataBlock?.GUIShowAmmoInfinite ?? false;
+            m_localItemTimes = PlayerBackpackManager.LocalBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
+            m_receiverItemTimes = m_receiverBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
+
+            if (m_exchangeType == ExchangeType.Exchange
+                && m_receiverItemTimes == m_localItemTimes && m_localItem.ItemDataBlock.persistentID == m_targetItem.ItemDataBlock.persistentID)
+            {
+                m_exchangeType = ExchangeType.Invalid;
+            }
 
             switch (m_exchangeType)
             {
                 case ExchangeType.Get:
                     m_interactExchangeItem.InteractionMessage = string.Format(Prompt_Get,
-                        m_actionReceiver.GetColoredName(), receiverTimes, m_targetItem.ArchetypeName);
+                        m_actionReceiver.GetColoredName(), m_localItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_receiverItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_receiverItemTimes > 1 ? "s" : string.Empty)}", m_targetItem.ArchetypeName);
                     break;
                 case ExchangeType.Give:
                     m_interactExchangeItem.InteractionMessage = string.Format(Prompt_Give,
-                        localTimes, m_localItem.ArchetypeName, m_actionReceiver.GetColoredName());
+                        m_targetItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_localItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_localItemTimes > 1 ? "s" : string.Empty)}", m_localItem.ArchetypeName, m_actionReceiver.GetColoredName());
                     break;
                 case ExchangeType.Exchange:
                     m_interactExchangeItem.InteractionMessage = string.Format(Prompt_Exchange,
-                    localTimes, m_localItem.ArchetypeName, m_actionReceiver.GetColoredName(), receiverTimes, m_targetItem.ArchetypeName);
+                    m_targetItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_localItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_localItemTimes > 1 ? "s" : string.Empty)}", m_localItem.ArchetypeName, m_actionReceiver.GetColoredName(), m_localItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_receiverItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_receiverItemTimes > 1 ? "s" : string.Empty)}", m_targetItem.ArchetypeName);
                     break;
                 default:
                     break;
@@ -185,7 +227,10 @@ namespace Hikaria.ExchangeItem.Handlers
             if (flag && !preIsActive && m_interactExchangeItem.TimerIsActive)
             {
                 m_localPlayer.Sync.SendGenericInteract(m_exchangeType == ExchangeType.Give ? pGenericInteractAnimation.TypeEnum.GiveResource : GetReachHeight(), false);
+
+                m_interactExchangeItem.ForceUpdatePrompt();
             }
+
             return true;
         }
 
@@ -208,6 +253,7 @@ namespace Hikaria.ExchangeItem.Handlers
 
         private void DoExchangeItem()
         {
+            m_keyReleased = false;
             ExchangeItemManager.WantToExchangeItem(m_actionReceiver.Owner, m_exchangeSlot);
         }
 
