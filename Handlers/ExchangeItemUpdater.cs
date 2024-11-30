@@ -197,7 +197,7 @@ namespace Hikaria.ExchangeItem.Handlers
             m_localItemTimes = PlayerBackpackManager.LocalBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
             m_receiverItemTimes = m_receiverBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
 
-            if (m_exchangeType == ExchangeType.Exchange
+            if (m_exchangeType == ExchangeType.Exchange && m_localItem?.ItemDataBlock != null && m_targetItem?.ItemDataBlock != null
                 && m_receiverItemTimes == m_localItemTimes && m_localItem.ItemDataBlock.persistentID == m_targetItem.ItemDataBlock.persistentID)
             {
                 m_exchangeType = ExchangeType.Invalid;
