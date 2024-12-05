@@ -1,6 +1,7 @@
-﻿using Gear;
+﻿using GameData;
+using Gear;
 using Hikaria.ExchangeItem.Managers;
-using Localization;
+using LevelGeneration;
 using Player;
 using UnityEngine;
 
@@ -50,7 +51,7 @@ namespace Hikaria.ExchangeItem.Handlers
 
         private void Update()
         {
-            if (!ExchangeItemManager.MasterHasExchangeItem || m_localPlayer.Interaction.HasWorldInteraction
+            if ((!ExchangeItemManager.MasterHasExchangeItem && !Features.ExchangeItem.Settings.ForceExchangeItem) || m_localPlayer.Interaction.HasWorldInteraction
                 || (!m_localPlayer.Inventory.WieldedItem?.AllowPlayerInteraction ?? false)
                 || (m_wieldResourcePack?.m_interactApplyResource.TimerIsActive ?? false)
                 || !m_localPlayer.Alive)
@@ -191,13 +192,14 @@ namespace Hikaria.ExchangeItem.Handlers
                 m_targetItem = null;
             }
 
-
-            m_localItemInfAmmo = m_localItem?.ItemDataBlock?.GUIShowAmmoInfinite ?? false;
-            m_targetItemInfAmmo = m_targetItem?.ItemDataBlock?.GUIShowAmmoInfinite ?? false;
+            m_localItemDataBlock = m_localItem?.ItemDataBlock;
+            m_targetItemDataBlock = m_targetItem?.ItemDataBlock;
+            m_localItemInfAmmo = m_localItemDataBlock == null ? false : (m_localItemDataBlock.GUIShowAmmoInfinite || !m_localItemDataBlock.GUIShowAmmoTotalRel);
+            m_targetItemInfAmmo = m_targetItemDataBlock == null ? false : (m_targetItemDataBlock.GUIShowAmmoInfinite || !m_targetItemDataBlock.GUIShowAmmoTotalRel);
             m_localItemTimes = PlayerBackpackManager.LocalBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
             m_receiverItemTimes = m_receiverBackpack.AmmoStorage.GetBulletsInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(m_exchangeSlot));
 
-            if (m_exchangeType == ExchangeType.Exchange && m_localItem?.ItemDataBlock != null && m_targetItem?.ItemDataBlock != null
+            if (m_exchangeType == ExchangeType.Exchange && m_localItemDataBlock != null && m_targetItemDataBlock != null
                 && m_receiverItemTimes == m_localItemTimes && m_localItem.ItemDataBlock.persistentID == m_targetItem.ItemDataBlock.persistentID)
             {
                 m_exchangeType = ExchangeType.Invalid;
@@ -207,15 +209,15 @@ namespace Hikaria.ExchangeItem.Handlers
             {
                 case ExchangeType.Get:
                     m_interactExchangeItem.InteractionMessage = string.Format(Prompt_Get,
-                        m_actionReceiver.GetColoredName(), m_localItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_receiverItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_receiverItemTimes > 1 ? "s" : string.Empty)}", m_targetItem.ArchetypeName);
+                        m_actionReceiver.GetColoredName(), m_targetItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_receiverItemTimes, m_receiverItemTimes > 1 ? "s" : string.Empty)}", m_targetItem.ArchetypeName);
                     break;
                 case ExchangeType.Give:
                     m_interactExchangeItem.InteractionMessage = string.Format(Prompt_Give,
-                        m_targetItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_localItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_localItemTimes > 1 ? "s" : string.Empty)}", m_localItem.ArchetypeName, m_actionReceiver.GetColoredName());
+                        m_localItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_localItemTimes, m_localItemTimes > 1 ? "s" : string.Empty)}", m_localItem.ArchetypeName, m_actionReceiver.GetColoredName());
                     break;
                 case ExchangeType.Exchange:
                     m_interactExchangeItem.InteractionMessage = string.Format(Prompt_Exchange,
-                    m_targetItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_localItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_localItemTimes > 1 ? "s" : string.Empty)}", m_localItem.ArchetypeName, m_actionReceiver.GetColoredName(), m_localItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_receiverItemTimes)}{(Features.ExchangeItem.Localization.CurrentLanguage != TheArchive.Core.Localization.Language.Chinese && m_receiverItemTimes > 1 ? "s" : string.Empty)}", m_targetItem.ArchetypeName);
+                    m_localItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_localItemTimes, m_localItemTimes > 1 ? "s" : string.Empty)}", m_localItem.ArchetypeName, m_actionReceiver.GetColoredName(), m_targetItemInfAmmo ? string.Empty : $" {string.Format(Prompt_Times, m_receiverItemTimes, m_receiverItemTimes > 1 ? "s" : string.Empty)}", m_targetItem.ArchetypeName);
                     break;
                 default:
                     break;
@@ -254,13 +256,36 @@ namespace Hikaria.ExchangeItem.Handlers
         private void DoExchangeItem()
         {
             m_keyReleased = false;
-            ExchangeItemManager.WantToExchangeItem(m_actionReceiver.Owner, m_exchangeSlot);
+            if (ExchangeItemManager.MasterHasExchangeItem)
+            {
+                ExchangeItemManager.WantToExchangeItem(m_actionReceiver.Owner, m_exchangeSlot);
+                return;
+            }
+
+            switch (m_exchangeType)
+            {
+                case ExchangeType.Give:
+                    ExchangeItemManager.PickupItem(m_actionReceiver, ExchangeItemManager.DropItem(m_localPlayer, m_exchangeSlot));
+                    break;
+                case ExchangeType.Get:
+                    ExchangeItemManager.PickupItem(m_localPlayer, ExchangeItemManager.DropItem(m_actionReceiver, m_exchangeSlot));
+                    break;
+                case ExchangeType.Exchange:
+                    var item1 = ExchangeItemManager.DropItem(m_localPlayer, m_exchangeSlot);
+                    var item2 = ExchangeItemManager.DropItem(m_actionReceiver, m_exchangeSlot);
+                    ExchangeItemManager.PickupItem(m_localPlayer, item2);
+                    ExchangeItemManager.PickupItem(m_actionReceiver, item1);
+                    break;
+
+            }
         }
 
         private PlayerAgent m_actionReceiver;
 
         private Item m_localItem;
         private Item m_targetItem;
+        private ItemDataBlock m_targetItemDataBlock;
+        private ItemDataBlock m_localItemDataBlock;
 
         private LocalPlayerAgent m_localPlayer;
 

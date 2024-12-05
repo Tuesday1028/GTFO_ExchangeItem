@@ -28,6 +28,9 @@ public class ExchangeItem : Feature
     {
         [FSDisplayName("物品交换按键")]
         public KeyCode ExchangeItemKey { get; set; } = KeyCode.T;
+
+        [FSDisplayName("强制物品交换")]
+        public bool ForceExchangeItem { get; set; } = false;
     }
 
     public override void OnFeatureSettingChanged(FeatureSetting setting)

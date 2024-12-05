@@ -1,5 +1,6 @@
 ﻿using Hikaria.Core;
 using Hikaria.Core.SNetworkExt;
+using LevelGeneration;
 using Player;
 using SNetwork;
 using System.Collections.Generic;
@@ -133,8 +134,33 @@ public class ExchangeItemManager
         s_ExchangeItemRequestPacket.Ask(new(SNet.LocalPlayer, target, slot));
     }
 
+    public static ItemInLevel DropItem(PlayerAgent player, InventorySlot slot)
+    {
+        if (!PlayerBackpackManager.TryGetBackpack(player.Owner, out var backpack) || !backpack.TryGetBackpackItem(slot, out var backpackItem) || backpackItem.Instance == null)
+        {
+            return null;
+        }
+        if (PlayerBackpackManager.TryGetItemInLevelFromItemData(backpackItem.Instance.Get_pItemData(), out var item))
+        {
+            ItemInLevel itemInLevel = item.Cast<ItemInLevel>();
+            float ammoInPack = backpack.AmmoStorage.GetAmmoInPack(PlayerAmmoStorage.GetAmmoTypeFromSlot(slot));
+            pItemData_Custom custom = itemInLevel.pItemData.custom;
+            custom.ammo = ammoInPack;
+            itemInLevel.GetSyncComponent().AttemptPickupInteraction(ePickupItemInteractionType.Place, player.Owner, custom, player.Position, player.Rotation, player.CourseNode, true, true);
+            return itemInLevel;
+        }
+        return null;
+    }
 
-	public static bool MasterHasExchangeItem { get; private set; }
+    public static void PickupItem(PlayerAgent player, ItemInLevel itemInLevel)
+    {
+        if (!itemInLevel)
+            return;
+        itemInLevel.GetSyncComponent().AttemptPickupInteraction(ePickupItemInteractionType.Pickup, player.Owner, default, default, default, null, false, true);
+    }
+
+
+    public static bool MasterHasExchangeItem { get; private set; }
 
     private static bool LastFlashLightStatus;
 
